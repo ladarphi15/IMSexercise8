@@ -76,7 +76,11 @@ public class RSA {
   }
 
   public ImsInteger decryptOptimized(ImsInteger value) {
-    return value.modPow(p, n).multiply(value.modPow(q, n));
+    final ImsInteger invP = n.divide(p).getBezout(p)[0];
+    final ImsInteger invQ = n.divide(q).getBezout(q)[0];
+    final ImsInteger tempP = n.divide(p).multiply(value).multiply(invP);
+    final ImsInteger tempQ = n.divide(q).multiply(value).multiply(invQ);
+    return tempP.add(tempQ).mod(n);
   }
 
   public ImsInteger getN() {
