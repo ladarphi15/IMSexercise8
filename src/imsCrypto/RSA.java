@@ -17,18 +17,38 @@ public class RSA {
     this.p = p;
     this.q = q;
     this.e = e;
+    n = p.multiply(q);
+    ImsInteger phiN = p.subtract(ImsInteger.ONE).multiply(q.subtract(ImsInteger.ONE));
+    d = e.getBezout(phiN)[0];
+    if (d.compareTo(ImsInteger.ZERO) < 0) {
+      d = d.mod(phiN);
+    }
   }
 
   public RSA(final Integer bitlength, final boolean optimized) {
     initializeRandomPAndQ(bitlength);
     n = p.multiply(q);
-    ImsInteger eMaxRange = p.multiply(q);
-    ImsInteger randomE;
-    do {
-      randomE = new ImsInteger(new BigInteger(eMaxRange.bitLength(), new Random()));
-    } while (randomE.compareTo(eMaxRange) >= 0 && eMaxRange.getGcd(randomE).compareTo(ImsInteger.ONE) != 0);
-    e = randomE;
-    d = e.getBezout(e);
+    ImsInteger phiN = p.subtract(ImsInteger.ONE).multiply(q.subtract(ImsInteger.ONE));
+    if (optimized) {
+      e = ImsInteger.ONE.add(ImsInteger.ONE).pow(16).add(ImsInteger.ONE);
+    } else {
+      ImsInteger randomE;
+      do {
+        randomE = new ImsInteger(new BigInteger(phiN.bitLength(), new Random()));
+      } while (randomE.compareTo(phiN) >= 0 || phiN.getGcd(randomE).compareTo(ImsInteger.ONE) != 0);
+      e = randomE;
+    }
+    d = e.getBezout(phiN)[0];
+    if (d.compareTo(ImsInteger.ZERO) < 0) {
+      d = d.mod(phiN);
+    }
+
+//    System.out.println("phiN: " + phiN);
+//    System.out.println("p: " + p);
+//    System.out.println("q: " + q);
+//    System.out.println("e: " + e);
+//    System.out.println("n: " + n);
+//    System.out.println("d: " + d);
   }
 
   private void initializeRandomPAndQ(final Integer bitlength) {
@@ -37,22 +57,26 @@ public class RSA {
     q = this.generateRandomPrimeFromRange(halfedBitlength);
   }
 
-  public ImsInteger generateRandomPrimeFromRange(final Integer length) {
+  private ImsInteger generateRandomPrimeFromRange(final Integer length) {
     ProbabilityTest test = new MillerRabinTest();
     ImsInteger r;
     do {
       r = new ImsInteger(new BigInteger(length, new Random()));
-    } while (!test.run(r, 44, false));
+    } while (!test.run(r, 100, false));
 
     return r;
   }
 
-  private void createPrivateKey() {
-
+  public ImsInteger encrypt(ImsInteger key, ImsInteger value) {
+    return value.modPow(key, n);
   }
 
-  public void encrypt(ImsInteger key) {
+  public ImsInteger decrypt(ImsInteger value) {
+    return value.modPow(d, n);
+  }
 
+  public ImsInteger decryptOptimized(ImsInteger value) {
+    return value.modPow(p, n).multiply(value.modPow(q, n));
   }
 
   public ImsInteger getN() {
@@ -63,3 +87,4 @@ public class RSA {
     return e;
   }
 }
+
